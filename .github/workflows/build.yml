@@ -1,0 +1,54 @@
+name: Build APK
+
+on:
+  push:
+    branches: [ main, master ]
+  pull_request:
+    branches: [ main, master ]
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.24.5'
+          channel: 'stable'
+          cache: true
+
+      - name: Create Android platform
+        working-directory: cend_dolphin
+        run: |
+          flutter create --platforms=android .
+          rm -rf lib test
+
+      - name: Patch AndroidManifest & minSdk
+        working-directory: cend_dolphin
+        run: python3 tool/patch_android.py
+
+      - name: Get dependencies
+        working-directory: cend_dolphin
+        run: flutter pub get
+
+      - name: Build Debug APK
+        working-directory: cend_dolphin
+        run: flutter build apk --debug
+
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: cend-dolphin-debug-apk
+          path: cend_dolphin/build/app/outputs/flutter-apk/app-debug.apk
+          retention-days: 14
